@@ -17,20 +17,16 @@ using Toybox.Time as Time;
 
 class AltSpeed extends Ui.View
 {
-    var history_size = 30;
-    var altitude_string = "no alt";
-    var vario_string = "no vario";
-    var altitude_graph;
-	var altitude_value_history = new [history_size];
-	var altitude_time_history = new [history_size];
-	var history_pointer = 0;
+    var altitude;
+	var speed;
 	
     //! Constructor
     function initialize()
     {
         Snsr.enableSensorEvents( method(:onSnsr) );
         
-        altitude_graph = new LineGraph( 20, 100, Gfx.COLOR_RED );
+        altitude = new HistoryDisplay(10, 100, 100, Gfx.COLOR_RED);
+        speed = new HistoryDisplay(0, 100, 10, Gfx.COLOR_BLUE);
     }
 
     //! Handle the update event
@@ -38,46 +34,19 @@ class AltSpeed extends Ui.View
     {
         dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
         dc.clear();
-
-        dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT );
-
-        dc.drawText( 100, 30, Gfx.FONT_LARGE, altitude_string, Gfx.TEXT_JUSTIFY_CENTER);
-        dc.drawText( 100, 130, Gfx.FONT_LARGE, vario_string, Gfx.TEXT_JUSTIFY_CENTER);
-
-        altitude_graph.draw( dc, [0,0], [dc.getWidth(),dc.getHeight()] );
+        
+    	altitude.draw(dc, 60, 30, 50, 130);
+    	speed.draw(dc, 150, 30, -1, -1);
     }
 
     function onSnsr(sensor_info)
     {
-		if (sensor_info.altitude != null) {    	
-        	computeString(sensor_info.altitude);
-        	altitude_graph.addItem(sensor_info.altitude);
+		if (sensor_info.altitude != null) {
+			altitude.addItem(sensor_info.altitude);
+			speed.addItem(sensor_info.speed * 3600 / 1000);    	
         }
         
         Ui.requestUpdate();
-    }
-    
-    function computeString(altitude)
-    {
-        altitude_string = altitude.format("%d");
-        
-        history_pointer++;
-        history_pointer %= history_size;
-
-        var now = Time.now();
-        if (altitude_time_history[history_pointer] != null) {
-	        var updatePeriod = now.subtract(altitude_time_history[history_pointer]).value().toFloat();
-	        var altitude_difference = altitude - altitude_value_history[history_pointer];
-	        altitude_value_history[history_pointer] = altitude;
-	        
-	        vario_string = (altitude_difference / updatePeriod).format("%.2f");
-        } else {
-			for(var i = 0; i < history_size; i++) {
-				altitude_value_history[i] = altitude;
-				altitude_time_history[i] = now;
-			}
-		}
-        altitude_time_history[history_pointer] = now;
     }
 }
 
