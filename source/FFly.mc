@@ -61,6 +61,8 @@ class AltSpeed extends Ui.View
 {
     var altitude;
 	var speed;
+	var heading = Math.PI;
+	var glideRatioString = "--";
 	
     //! Constructor
     function initialize()
@@ -86,23 +88,57 @@ class AltSpeed extends Ui.View
     		dc.fillRectangle(dc.getWidth()/2 - 10, 0, 20, 20);
     	}
     	
-    	dc.setColor(Gfx.COLOR_PINK, Gfx.COLOR_BLACK);
-    	dc.drawText(150, 130, Gfx.FONT_LARGE, log, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT );
+    	dc.drawText(150, 130, Gfx.FONT_LARGE, glideRatioString, Gfx.TEXT_JUSTIFY_CENTER);
+
+    	dc.setColor(Gfx.COLOR_GREEN, Gfx.COLOR_BLACK);
+		drawHand(dc, -heading, 20, 30);
     }
 
+    function drawHand(dc, angle, length, width)
+    {
+    	var radius = dc.getWidth() / 2;
+        // Map out the coordinates of the watch hand
+        var coords = [ [-(width/2), length - radius], [-(width/2), -radius], [width/2, -radius], [width/2, length - radius] ];
+        var result = new [4];
+        var centerX = dc.getWidth() / 2;
+        var centerY = dc.getHeight() / 2;
+        var cos = Math.cos(angle);
+        var sin = Math.sin(angle);
+
+        // Transform the coordinates
+        for (var i = 0; i < 4; i += 1)
+        {
+            var x = (coords[i][0] * cos) - (coords[i][1] * sin);
+            var y = (coords[i][0] * sin) + (coords[i][1] * cos);
+            result[i] = [ centerX+x, centerY+y];
+        }
+
+        // Draw the polygon
+        dc.fillPolygon(result);
+        dc.fillPolygon(result);
+    }
+    
     function onSnsr(sensor_info)
     {
 		if (sensor_info.altitude != null) {
 			altitude.addItem(sensor_info.altitude);
+			heading = sensor_info.heading;
 		}
-        
         Ui.requestUpdate();
     }
     
     
     function onPosition(info) {
     	if (info.speed != null) {
-			speed.addItem(info.speed * 3600 / 1000);    	
+			speed.addItem(info.speed * 3600 / 1000);
+			var altVario = altitude.getVarioValue();
+			if (altVario == 0) {
+				glideRatioString = "oo";
+			} else {
+				glideRatioString = (-info.speed / altVario).format("%.1f");
+			}
+//            heading = info.heading;
         }
         
         Ui.requestUpdate();

@@ -24,6 +24,7 @@ class HistoryDisplay
 	var value_history;
 	var time_history;
 	var history_pointer = 0;
+	var vario_value = 0;
 	
     //! Constructor
     function initialize(varioHistorySize, graphHistorySize, minRange, color)
@@ -67,8 +68,8 @@ class HistoryDisplay
 		        var updatePeriod = now.subtract(time_history[history_pointer]).value().toFloat();
 		        var difference = value - value_history[history_pointer];
 		        value_history[history_pointer] = value;
-		        
-		        vario_string = (difference / updatePeriod).format("%.2f");
+		        vario_value = difference / updatePeriod;
+		        vario_string = vario_value.format("%.2f");
 	        } else {
 				for(var i = 0; i < history_size; i++) {
 					value_history[i] = value;
@@ -77,5 +78,10 @@ class HistoryDisplay
 			}
 	        time_history[history_pointer] = now;
         }
+    }
+    
+    function getVarioValue()
+    {
+    	return vario_value;
     }
 }
