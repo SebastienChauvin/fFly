@@ -25,20 +25,24 @@ class HistoryDisplay
 	var time_history;
 	var history_pointer = 0;
 	var vario_value = 0;
+	var text_color;
 	
     //! Constructor
-    function initialize(varioHistorySize, graphHistorySize, minRange, color)
+    function initialize(varioHistorySize, graphHistorySize, minRange, graphColor, textColor)
     {
-        graph = new LineGraph(graphHistorySize, minRange, color);
+    	if (graphHistorySize != 0) {
+        	graph = new LineGraph(graphHistorySize, minRange, graphColor);
+        }
+        text_color = textColor;
         history_size = varioHistorySize;
         value_history = new [history_size];
 		time_history = new [history_size];
     }
 
-    //! Handle the update event
+    //! Handle the update events
     function draw(dc, valueX, valueY, varioX, varioY)
     {
-        dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT );
+        dc.setColor(text_color, Gfx.COLOR_TRANSPARENT );
 
 		if (valueX >= 0) {
         	dc.drawText( valueX, valueY, Gfx.FONT_LARGE, value_string, Gfx.TEXT_JUSTIFY_CENTER);
@@ -47,13 +51,17 @@ class HistoryDisplay
         	dc.drawText( varioX, varioY, Gfx.FONT_LARGE, vario_string, Gfx.TEXT_JUSTIFY_CENTER);
        	}
 
-        graph.draw( dc, [0,0], [dc.getWidth(),dc.getHeight()] );
+		if (graph != null) {
+        	graph.draw( dc, [0,0], [dc.getWidth(),dc.getHeight()] );
+        }
     }
 
     function addItem(value)
     {
         computeString(value);
-        graph.addItem(value);
+        if (graph != null) {
+        	graph.addItem(value);
+        }
     }
     
     function computeString(value)
