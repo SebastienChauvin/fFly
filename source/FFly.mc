@@ -41,11 +41,17 @@ var vibrateLogEnd = [
 // - Auto detect hike mode
 // - * Record HR
 // - * Wall-clock Time, Flight/Hike duration, Temperature, HR
-// - Total distance
+// - * Total distance
 // - * Vibration for session start
 
 class BaseInputDelegate extends Ui.InputDelegate
 {
+	var mainView;
+	
+	function initialize(m) {
+		mainView = m;
+	}
+	
     function stopRecording() {
         Attention.vibrate( vibrateLogEnd );
         
@@ -56,6 +62,7 @@ class BaseInputDelegate extends Ui.InputDelegate
     }
     
     function startRecording() {
+        mainView.showHelp();
         Attention.vibrate( vibrateLogStart );
     
         session = Record.createSession({:name=>"FFly", :sport=>Record.SPORT_GENERIC});
@@ -64,14 +71,23 @@ class BaseInputDelegate extends Ui.InputDelegate
 	}
 	
     function onKey(key) {
-        if(key.getKey() == Ui.KEY_ENTER) {
+    	var k = key.getKey();
+        if(k == Ui.KEY_ENTER) {
     		toggleRecording();	
         }
         else {
     	    Sys.println(key.getKey().toString());
     	}    	
     }
-    
+
+	function isRecording() {
+	    if( Toybox has :ActivityRecording ) {
+            return session != null && session.isRecording();
+        } else {
+        	return false;
+        }
+	}
+	
     function toggleRecording() {
         if( Toybox has :ActivityRecording ) {
             if( ( session == null ) || ( session.isRecording() == false ) ) {
@@ -97,6 +113,7 @@ class AltSpeed extends Ui.View
 	var statusIndex = 0;
 	var activityStart;
 	var currentTemperature;
+	var helpCounter = 5;
 	
     //! Constructor
     function initialize()
@@ -111,10 +128,25 @@ class AltSpeed extends Ui.View
         activityStart = Time.now();
     }
 
+	function showHelp() {
+   	    Sys.println("help");
+		helpCounter = 10;
+	}
+	
     //! Handle the update event
     function onUpdate(dc)
     {
-        dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
+    	if (helpCounter > 0) {
+    		drawHelpScreen(dc);
+    		--helpCounter;
+    	} else {
+    		drawMainScreen(dc);
+    	}
+    }
+
+	function drawMainScreen(dc)
+	{
+	    dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
         dc.clear();
         
     	altitude.draw(dc, 60, 30, 50, 130);
@@ -129,7 +161,7 @@ class AltSpeed extends Ui.View
     	dc.drawText(150, 130, Gfx.FONT_LARGE, glideRatioString, Gfx.TEXT_JUSTIFY_CENTER);
     	
     	dc.setColor(Gfx.COLOR_LT_GRAY, Gfx.COLOR_TRANSPARENT );
-    	dc.drawText(150, 80, Gfx.FONT_LARGE, distString, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(150, 80, Gfx.FONT_MEDIUM, distString, Gfx.TEXT_JUSTIFY_CENTER);
     	dc.drawText(60, 80, Gfx.FONT_LARGE, altitudeDiffString, Gfx.TEXT_JUSTIFY_CENTER);
 
 		var status;
@@ -140,11 +172,38 @@ class AltSpeed extends Ui.View
 		} while (status == null);
     	dc.drawText(dc.getWidth()/2, dc.getHeight()-30, Gfx.FONT_SMALL, status, Gfx.TEXT_JUSTIFY_CENTER);
 		
-		
     	dc.setColor(Gfx.COLOR_GREEN, Gfx.COLOR_BLACK);
 		drawHand(dc, -heading, 20, 30);
-    }
+	}
+	
+	function drawHelpScreen(dc)
+	{
+        dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
+        dc.clear();
+        
+    	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
 
+    	dc.drawText(60, 30, Gfx.FONT_SMALL, "Altitude", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(50, 130, Gfx.FONT_SMALL, "Vario", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(150, 30, Gfx.FONT_SMALL, "Speed", Gfx.TEXT_JUSTIFY_CENTER);
+    	
+   		dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_YELLOW);
+    	dc.drawText(dc.getWidth()/2 - 10, 10, Gfx.FONT_SMALL, "Record", Gfx.TEXT_JUSTIFY_CENTER);
+    	
+    	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
+    	dc.drawText(150, 130, Gfx.FONT_SMALL, "GlideRatio", Gfx.TEXT_JUSTIFY_CENTER);
+    	
+    	dc.drawText(150, 80, Gfx.FONT_SMALL, "Dist2Point", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(60, 80, Gfx.FONT_SMALL, "Alt2Point", Gfx.TEXT_JUSTIFY_CENTER);
+
+    	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_GREEN);
+    	dc.drawText(dc.getWidth()/2 - 10, dc.getHeight() - 15, Gfx.FONT_SMALL, "North", Gfx.TEXT_JUSTIFY_CENTER);
+
+    	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
+    	dc.drawText(dc.getWidth()/2, dc.getHeight()-40, Gfx.FONT_XTINY, "clock/temp/HR/time/", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(dc.getWidth()/2, dc.getHeight()-30, Gfx.FONT_XTINY, "totalDist/totalD+", Gfx.TEXT_JUSTIFY_CENTER);		
+	}
+	
     function drawHand(dc, angle, length, width)
     {
     	var radius = dc.getWidth() / 2;
@@ -222,6 +281,28 @@ class AltSpeed extends Ui.View
     	return 6371*2*Math.asin(Math.sqrt(Math.pow(Math.sin(dlat/2),2)+Math.cos(pos1A[1])*Math.cos(pos2A[1])*Math.pow(Math.sin(dlon/2),2)));
     }
     
+    function calcBearing(pos1, pos2) {
+	   	var pos1A = pos1.toRadians();
+	   	var pos2A = pos2.toRadians();
+	   	var la1 = pos1A[0];
+	   	var la2 = pos2A[0];
+	   	var lo1 = pos1A[1];
+	   	var lo2 = pos2A[1];
+	    var y = Math.sin(lo2-lo1) * Math.cos(la2);
+		var x = Math.cos(la1)*Math.sin(la2) -
+	    	    Math.sin(la1)*Math.cos(la2)*Math.cos(lo2-lo1);
+		return atan2(y, x);
+    }
+    
+    function atan2(y, x)
+    {
+    	if (x == 0) {
+    		return 0;
+    	} else {
+    		return Math.atan(y/x) + (x < 0 ? Math.PI : 0);
+    	}
+    }
+    
     function onPosition(info) {
     	if (info.speed != null) {
 			speed.addItem(info.speed * 3600 / 1000);
@@ -234,7 +315,7 @@ class AltSpeed extends Ui.View
 			if (targetPosition == null) {
 				targetPosition = info.position;
 			}
-			distString = calcDistance(targetPosition, info.position).format("%.2f");
+			distString = calcDistance(targetPosition, info.position).format("%.2f") + "|" + calcBearing(targetPosition, info.position).format("%.2f");
         }
         
         Ui.requestUpdate();
@@ -254,21 +335,26 @@ class AltSpeed extends Ui.View
 class FFly extends App.AppBase
 {
 	var inputDelegate;
+	var store;
 	
-    function onStart()
+    function onStart(state)
     {
         return false;
     }
 
     function getInitialView()
     {
-    	inputDelegate = new BaseInputDelegate();
-        return [new AltSpeed(), inputDelegate];
+    	var mainView = new AltSpeed();
+    	inputDelegate = new BaseInputDelegate(mainView);
+        return [mainView, inputDelegate];
     }
 
     function onStop()
     {
-        inputDelegate.stopRecording();
-        return false;
+    	if (inputDelegate.isRecording()) {
+        	return { "recording" => true };
+        } else {
+        	return null;
+        }
     }
 }
