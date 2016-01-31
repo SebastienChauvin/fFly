@@ -19,10 +19,9 @@ class HistoryDisplay
 {
     var history_size;
     var value_string = "--";
-    var vario_string = "--";
+    var vario_string = "-v-";
     var graph;
 	var value_history;
-	var time_history;
 	var history_pointer = 0;
 	var vario_value = 0;
 	var text_color;
@@ -35,8 +34,9 @@ class HistoryDisplay
         }
         text_color = textColor;
         history_size = varioHistorySize;
-        value_history = new [history_size];
-		time_history = new [history_size];
+        if (history_size > 0) {
+		    value_history = new [history_size];
+		}
     }
 
     //! Handle the update events
@@ -71,20 +71,16 @@ class HistoryDisplay
 	        history_pointer++;
 	        history_pointer %= history_size;
 	
-	        var now = Time.now();
-	        if (time_history[history_pointer] != null) {
-		        var updatePeriod = now.subtract(time_history[history_pointer]).value().toFloat();
+	        if (value_history[history_pointer] != null) {
 		        var difference = value - value_history[history_pointer];
 		        value_history[history_pointer] = value;
-		        vario_value = difference / updatePeriod;
+		        vario_value = difference / history_size.toFloat();
 		        vario_string = vario_value.format("%.2f");
 	        } else {
 				for(var i = 0; i < history_size; i++) {
 					value_history[i] = value;
-					time_history[i] = now;
 				}
 			}
-	        time_history[history_pointer] = now;
         }
     }
     

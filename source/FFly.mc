@@ -8,29 +8,15 @@ using Toybox.WatchUi as Ui;
 using Toybox.Graphics as Gfx;
 using Toybox.System as Sys;
 using Toybox.Lang as Lang;
-using Toybox.Sensor as Snsr;
 using Toybox.Application as App;
 using Toybox.Position as GPS;
 using Toybox.Math as Math;
 using Toybox.Time as Time;
 using Toybox.Position as Position;
-using Toybox.ActivityRecording as Record;
-using Toybox.Attention as Attention;
 using Toybox.Activity as Activity;
 
 
-var session = null;
 var log = "";
-
-var vibrateLogStart = [
-                    new Attention.VibeProfile(  25, 100 ),
-                    new Attention.VibeProfile(  100, 100 )
-                  ];
-var vibrateLogEnd = [
-                    new Attention.VibeProfile(  25, 100 ),
-                    new Attention.VibeProfile(  25, 100 ),
-                    new Attention.VibeProfile(  25, 100 )
-                  ];
                       
 // TODO
 // - Waypoints
@@ -44,63 +30,7 @@ var vibrateLogEnd = [
 // - * Total distance
 // - * Vibration for session start
 
-class BaseInputDelegate extends Ui.InputDelegate
-{
-	var mainView;
-	
-	function initialize(m) {
-		mainView = m;
-	}
-	
-    function stopRecording() {
-        Attention.vibrate( vibrateLogEnd );
-        
-        session.stop();
-        session.save();
-        session = null;
-        Ui.requestUpdate();
-    }
-    
-    function startRecording() {
-        mainView.showHelp();
-        Attention.vibrate( vibrateLogStart );
-    
-        session = Record.createSession({:name=>"FFly", :sport=>Record.SPORT_GENERIC});
-        session.start();
-        Ui.requestUpdate();
-	}
-	
-    function onKey(key) {
-    	var k = key.getKey();
-        if(k == Ui.KEY_ENTER) {
-    		toggleRecording();	
-        }
-        else {
-    	    Sys.println(key.getKey().toString());
-    	}    	
-    }
-
-	function isRecording() {
-	    if( Toybox has :ActivityRecording ) {
-            return session != null && session.isRecording();
-        } else {
-        	return false;
-        }
-	}
-	
-    function toggleRecording() {
-        if( Toybox has :ActivityRecording ) {
-            if( ( session == null ) || ( session.isRecording() == false ) ) {
-            	startRecording();
-            }
-            else if( ( session != null ) && session.isRecording() ) {
-            	stopRecording();
-            }
-        }
-    }
-}
-
-class AltSpeed extends Ui.View
+class AltSpeed extends Ui.DataField
 {
     var altitude;
 	var speed;
@@ -113,24 +43,20 @@ class AltSpeed extends Ui.View
 	var statusIndex = 0;
 	var activityStart;
 	var currentTemperature;
-	var helpCounter = 5;
+	var helpCounter;
 	
     //! Constructor
     function initialize()
     {
-        Snsr.setEnabledSensors([Snsr.SENSOR_TEMPERATURE, Snsr.SENSOR_HEARTRATE]);
-        Snsr.enableSensorEvents( method(:onSnsr) );
-        Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
-        
-        altitude = new HistoryDisplay(10, 0, 100, Gfx.COLOR_DK_RED, Gfx.COLOR_WHITE);
-        speed = new HistoryDisplay(0, 0, 10, Gfx.COLOR_DK_BLUE, Gfx.COLOR_WHITE);
+        altitude = new HistoryDisplay(10, 0, 0, Gfx.COLOR_DK_RED, Gfx.COLOR_WHITE);
+        speed = new HistoryDisplay(0, 0, 0, Gfx.COLOR_DK_BLUE, Gfx.COLOR_WHITE);
         
         activityStart = Time.now();
+        showHelp();
     }
 
 	function showHelp() {
-   	    Sys.println("help");
-		helpCounter = 10;
+		helpCounter = 2;
 	}
 	
     //! Handle the update event
@@ -152,11 +78,6 @@ class AltSpeed extends Ui.View
     	altitude.draw(dc, 60, 30, 50, 130);
     	speed.draw(dc, 150, 30, -1, -1);
     	
-    	if (session != null) {
-    		dc.setColor(Gfx.COLOR_YELLOW, Gfx.COLOR_YELLOW);
-    		dc.fillRectangle(dc.getWidth()/2 - 10, 0, 20, 20);
-    	}
-    	
     	dc.setColor(Gfx.COLOR_WHITE, Gfx.COLOR_TRANSPARENT );
     	dc.drawText(150, 130, Gfx.FONT_LARGE, glideRatioString, Gfx.TEXT_JUSTIFY_CENTER);
     	
@@ -172,8 +93,10 @@ class AltSpeed extends Ui.View
 		} while (status == null);
     	dc.drawText(dc.getWidth()/2, dc.getHeight()-30, Gfx.FONT_SMALL, status, Gfx.TEXT_JUSTIFY_CENTER);
 		
-    	dc.setColor(Gfx.COLOR_GREEN, Gfx.COLOR_BLACK);
-		drawHand(dc, -heading, 20, 30);
+    	if (heading != null) {
+    		dc.setColor(Gfx.COLOR_GREEN, Gfx.COLOR_BLACK);
+			drawHand(dc, -heading, 20, 30);
+		}
 	}
 	
 	function drawHelpScreen(dc)
@@ -187,9 +110,6 @@ class AltSpeed extends Ui.View
     	dc.drawText(50, 130, Gfx.FONT_SMALL, "Vario", Gfx.TEXT_JUSTIFY_CENTER);
     	dc.drawText(150, 30, Gfx.FONT_SMALL, "Speed", Gfx.TEXT_JUSTIFY_CENTER);
     	
-   		dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_YELLOW);
-    	dc.drawText(dc.getWidth()/2 - 10, 10, Gfx.FONT_SMALL, "Record", Gfx.TEXT_JUSTIFY_CENTER);
-    	
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
     	dc.drawText(150, 130, Gfx.FONT_SMALL, "GlideRatio", Gfx.TEXT_JUSTIFY_CENTER);
     	
@@ -197,7 +117,7 @@ class AltSpeed extends Ui.View
     	dc.drawText(60, 80, Gfx.FONT_SMALL, "Alt2Point", Gfx.TEXT_JUSTIFY_CENTER);
 
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_GREEN);
-    	dc.drawText(dc.getWidth()/2 - 10, dc.getHeight() - 15, Gfx.FONT_SMALL, "North", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(dc.getWidth()/2 - 10, 15, Gfx.FONT_SMALL, "North", Gfx.TEXT_JUSTIFY_CENTER);
 
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
     	dc.drawText(dc.getWidth()/2, dc.getHeight()-40, Gfx.FONT_XTINY, "clock/temp/HR/time/", Gfx.TEXT_JUSTIFY_CENTER);
@@ -225,23 +145,8 @@ class AltSpeed extends Ui.View
 
         // Draw the polygon
         dc.fillPolygon(result);
-        dc.fillPolygon(result);
     }
     
-    function onSnsr(sensor_info)
-    {
-		if (sensor_info.altitude != null) {
-			altitude.addItem(sensor_info.altitude);
-			heading = sensor_info.heading;
-			if (targetAltitude == null) {
-				targetAltitude = sensor_info.altitude;
-			}
-			altitudeDiffString = (targetAltitude - sensor_info.altitude).format("%d");
-			currentTemperature = sensor_info.temperature;
-		}
-        Ui.requestUpdate();
-    }    
-
 	function statusString(idx) {
 		var info = Activity.getActivityInfo();
 		if (idx == 0) {
@@ -303,58 +208,49 @@ class AltSpeed extends Ui.View
     	}
     }
     
-    function onPosition(info) {
-    	if (info.speed != null) {
-			speed.addItem(info.speed * 3600 / 1000);
+    function compute(info) {
+   	    var s = info.currentSpeed;
+    	if (s != null) {
+			speed.addItem(s * 3600 / 1000);
 			var altVario = altitude.getVarioValue();
 			if (altVario == 0) {
 				glideRatioString = "oo";
 			} else {
-				glideRatioString = (-info.speed / altVario).format("%.1f");
+				glideRatioString = (-s / altVario).format("%.1f");
 			}
 			if (targetPosition == null) {
-				targetPosition = info.position;
+				targetPosition = info.currentLocation;
 			}
-			distString = calcDistance(targetPosition, info.position).format("%.2f") + "|" + calcBearing(targetPosition, info.position).format("%.2f");
-        }
-        
-        Ui.requestUpdate();
-    }
-    
-    function onHide() {
-        Position.enableLocationEvents(Position.LOCATION_DISABLE, method(:onPosition));
-    }
-
-    function onShow() {
-        Position.enableLocationEvents(Position.LOCATION_CONTINUOUS, method(:onPosition));
-		Snsr.enableSensorEvents( method(:onSnsr) );
+			distString = calcDistance(targetPosition, info.currentLocation).format("%.2f") + "|" + calcBearing(targetPosition, info.currentLocation).format("%.2f");
+        }        
+		heading = info.currentHeading;
+		if (info.altitude != null) {
+			altitude.addItem(info.altitude);
+			if (targetAltitude == null) {
+				targetAltitude = info.altitude;
+			}
+			altitudeDiffString = (targetAltitude - info.altitude).format("%d");
+		}
     }
 }
 
-//! main is the primary start point for a Monkeybrains application
 class FFly extends App.AppBase
 {
-	var inputDelegate;
-	var store;
-	
+    function initialize() {
+        AppBase.initialize();
+    }
+    
     function onStart(state)
     {
-        return false;
-    }
-
-    function getInitialView()
-    {
-    	var mainView = new AltSpeed();
-    	inputDelegate = new BaseInputDelegate(mainView);
-        return [mainView, inputDelegate];
     }
 
     function onStop()
+    {    	
+    }
+    
+    function getInitialView()
     {
-    	if (inputDelegate.isRecording()) {
-        	return { "recording" => true };
-        } else {
-        	return null;
-        }
+    	var mainView = new AltSpeed();
+        return [mainView];
     }
 }
