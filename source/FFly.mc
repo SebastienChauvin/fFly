@@ -38,8 +38,10 @@ class AltSpeed extends Ui.DataField
 	var glideRatioString = "--";
 	var targetPosition;
 	var targetAltitude;
-	var distString = "--";
-	var altitudeDiffString = "--";
+	var bearing2Pt;
+	var glide2PtString = "--";
+	var dist2PtString = "--";
+	var altitude2PtString = "--";
 	var statusIndex = 0;
 	var activityStart;
 	var currentTemperature;
@@ -72,6 +74,8 @@ class AltSpeed extends Ui.DataField
 
 	function drawMainScreen(dc)
 	{
+		var hw = dc.getWidth()/2;
+		
 	    dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
         dc.clear();
         
@@ -82,8 +86,9 @@ class AltSpeed extends Ui.DataField
     	dc.drawText(150, 130, Gfx.FONT_LARGE, glideRatioString, Gfx.TEXT_JUSTIFY_CENTER);
     	
     	dc.setColor(Gfx.COLOR_LT_GRAY, Gfx.COLOR_TRANSPARENT );
-    	dc.drawText(150, 80, Gfx.FONT_MEDIUM, distString, Gfx.TEXT_JUSTIFY_CENTER);
-    	dc.drawText(60, 80, Gfx.FONT_LARGE, altitudeDiffString, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(40, 80, Gfx.FONT_MEDIUM, altitude2PtString, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(hw, 80, Gfx.FONT_MEDIUM, dist2PtString, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(175, 80, Gfx.FONT_MEDIUM, glide2PtString, Gfx.TEXT_JUSTIFY_CENTER);
 
 		var status;
     	do {
@@ -91,21 +96,27 @@ class AltSpeed extends Ui.DataField
 			statusIndex %= 60;
 			status = statusString(statusIndex/10);
 		} while (status == null);
-    	dc.drawText(dc.getWidth()/2, dc.getHeight()-30, Gfx.FONT_SMALL, status, Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(hw, dc.getHeight()-30, Gfx.FONT_SMALL, status, Gfx.TEXT_JUSTIFY_CENTER);
 		
     	if (heading != null) {
     		dc.setColor(Gfx.COLOR_GREEN, Gfx.COLOR_BLACK);
 			drawHand(dc, -heading, 20, 30);
 		}
+		if (bearing2Pt != null) {
+    		dc.setColor(Gfx.COLOR_YELLOW, Gfx.COLOR_BLACK);
+			drawHand(dc, bearing2Pt, 20, 30);
+		}
 	}
 	
 	function drawHelpScreen(dc)
 	{
-        dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
+        var hw = dc.getWidth()/2;
+		
+		dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_BLACK);
         dc.clear();
         
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
-
+ 
     	dc.drawText(60, 30, Gfx.FONT_SMALL, "Altitude", Gfx.TEXT_JUSTIFY_CENTER);
     	dc.drawText(50, 130, Gfx.FONT_SMALL, "Vario", Gfx.TEXT_JUSTIFY_CENTER);
     	dc.drawText(150, 30, Gfx.FONT_SMALL, "Speed", Gfx.TEXT_JUSTIFY_CENTER);
@@ -113,15 +124,16 @@ class AltSpeed extends Ui.DataField
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
     	dc.drawText(150, 130, Gfx.FONT_SMALL, "GlideRatio", Gfx.TEXT_JUSTIFY_CENTER);
     	
-    	dc.drawText(150, 80, Gfx.FONT_SMALL, "Dist2Point", Gfx.TEXT_JUSTIFY_CENTER);
-    	dc.drawText(60, 80, Gfx.FONT_SMALL, "Alt2Point", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(40, 80, Gfx.FONT_SMALL, "Alt2Point", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(hw, 80, Gfx.FONT_SMALL, "Dist2Point", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(180, 80, Gfx.FONT_SMALL, "Glide2Point", Gfx.TEXT_JUSTIFY_CENTER);
 
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_GREEN);
-    	dc.drawText(dc.getWidth()/2 - 10, 15, Gfx.FONT_SMALL, "North", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(hw - 10, 15, Gfx.FONT_SMALL, "North", Gfx.TEXT_JUSTIFY_CENTER);
 
     	dc.setColor(Gfx.COLOR_RED, Gfx.COLOR_TRANSPARENT );
-    	dc.drawText(dc.getWidth()/2, dc.getHeight()-40, Gfx.FONT_XTINY, "clock/temp/HR/time/", Gfx.TEXT_JUSTIFY_CENTER);
-    	dc.drawText(dc.getWidth()/2, dc.getHeight()-30, Gfx.FONT_XTINY, "totalDist/totalD+", Gfx.TEXT_JUSTIFY_CENTER);		
+    	dc.drawText(hw, dc.getHeight()-40, Gfx.FONT_XTINY, "clock/temp/HR/time/", Gfx.TEXT_JUSTIFY_CENTER);
+    	dc.drawText(hw, dc.getHeight()-30, Gfx.FONT_XTINY, "totalDist/totalD+", Gfx.TEXT_JUSTIFY_CENTER);		
 	}
 	
     function drawHand(dc, angle, length, width)
@@ -209,6 +221,16 @@ class AltSpeed extends Ui.DataField
     }
     
     function compute(info) {
+    	var altitude2Pt = 0;
+    	var alt = info.altitude;
+		if (alt != null) {
+			altitude.addItem(alt);
+			if (targetAltitude == null) {
+				targetAltitude = info.altitude;
+			}
+			altitude2Pt = alt - targetAltitude;
+			altitude2PtString = altitude2Pt.format("%d");
+		}
    	    var s = info.currentSpeed;
     	if (s != null) {
 			speed.addItem(s * 3600 / 1000);
@@ -221,16 +243,16 @@ class AltSpeed extends Ui.DataField
 			if (targetPosition == null) {
 				targetPosition = info.currentLocation;
 			}
-			distString = calcDistance(targetPosition, info.currentLocation).format("%.2f") + "|" + calcBearing(targetPosition, info.currentLocation).format("%.2f");
+			var dist2Pt = calcDistance(targetPosition, info.currentLocation);
+			if (altitude2Pt == 0) {
+				glide2PtString = "--";
+			} else {
+				glide2PtString = (dist2Pt * 1000 / altitude2Pt).format("%.1f");
+			}
+			dist2PtString = dist2Pt.format("%.2f"); 
+			bearing2Pt = calcBearing(targetPosition, info.currentLocation);
         }        
 		heading = info.currentHeading;
-		if (info.altitude != null) {
-			altitude.addItem(info.altitude);
-			if (targetAltitude == null) {
-				targetAltitude = info.altitude;
-			}
-			altitudeDiffString = (targetAltitude - info.altitude).format("%d");
-		}
     }
 }
 
